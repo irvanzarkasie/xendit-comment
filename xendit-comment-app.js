@@ -18,13 +18,14 @@ const logger = {
   "log": function(logData){
     logData["service"] = process.env.APP_NAME;
     var loggerApp = {
-      uri: process.env.LOGGER_APP_URI,
+      uri: ["http://", process.env.KUBE_LOGGER_SERVICE_HOST, ":", process.env.KUBE_LOGGER_SERVICE_PORT, process.env.LOGGER_APP_PATH].join(""),
       body: JSON.stringify(logData),
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       }
     }
+    console.log(new Date().toISOString() + " Publish HTTP POST request to " + ["http://", process.env.KUBE_LOGGER_SERVICE_HOST, ":", process.env.KUBE_LOGGER_SERVICE_PORT, process.env.LOGGER_APP_PATH].join(""));
     request(loggerApp, function(error, response){});
   }
 };
@@ -43,6 +44,7 @@ const dbAdapter = {
     return await this.httpSynchronous(dbAdapterApp);
   },
   "httpSynchronous": async function(httpReq){
+    console.log(new Date().toISOString() + " Publish HTTP " + httpReq.method + " request to " + httpReq.uri);
     return new Promise((resolve, reject) => {
       request(httpReq, function(error, response, body){
         if(error || response.statusCode != 200){
@@ -57,6 +59,7 @@ const dbAdapter = {
 };
 
 app.post("/orgs/:orgId/comments", async (req, res) => {
+  console.log(new Date().toISOString() + " " + req.method + " " + req.originalUrl + " invoked");
   var reqId = uuidv4();
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Receive request with parameters", payload: req.body});
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Organization ID value: " + req.params.orgId});
@@ -76,7 +79,7 @@ app.post("/orgs/:orgId/comments", async (req, res) => {
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Request constructed", payload: insertRq});
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Send insert request to DB Adapter app"});
   try {
-    const dbResponse = await dbAdapter.request(process.env.DBADAPTER_INSERT_URI, insertRq);
+    const dbResponse = await dbAdapter.request(["http://", process.env.KUBE_DB_SERVICE_HOST, ":", process.env.KUBE_DB_SERVICE_PORT, process.env.DBADAPTER_INSERT_PATH].join(""), insertRq);
     logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Receive response from DBAdapter app", payload: dbResponse});
     var response = {
       "reqId": reqId,
@@ -97,6 +100,7 @@ app.post("/orgs/:orgId/comments", async (req, res) => {
 });
 
 app.get("/orgs/:orgId/comments", async (req, res) => {
+  console.log(new Date().toISOString() + " " + req.method + " " + req.originalUrl + " invoked");
   var reqId = uuidv4();
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Receive get comments request"});
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Organization ID value: " + req.params.orgId});
@@ -113,7 +117,7 @@ app.get("/orgs/:orgId/comments", async (req, res) => {
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Request constructed", payload: readRq});
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Send read request to DB Adapter app"});
   try {
-    const dbResponse = await dbAdapter.request(process.env.DBADAPTER_READ_URI, readRq);
+    const dbResponse = await dbAdapter.request(["http://", process.env.KUBE_DB_SERVICE_HOST, ":", process.env.KUBE_DB_SERVICE_PORT, process.env.DBADAPTER_READ_PATH].join(""), readRq);
     logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Receive response from DBAdapter app", payload: dbResponse});
     var response = {
       "reqId": reqId,
@@ -141,6 +145,7 @@ app.get("/orgs/:orgId/comments", async (req, res) => {
 });
 
 app.delete("/orgs/:orgId/comments", async (req, res) => {
+  console.log(new Date().toISOString() + " " + req.method + " " + req.originalUrl + " invoked");
   var reqId = uuidv4();
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Receive delete comments request"});
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Organization ID value: " + req.params.orgId});
@@ -156,7 +161,7 @@ app.delete("/orgs/:orgId/comments", async (req, res) => {
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Request constructed", payload: deleteRq});
   logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Send delete request to DB Adapter app"});
   try {
-    const dbResponse = await dbAdapter.request(process.env.DBADAPTER_DELETE_URI, deleteRq);
+    const dbResponse = await dbAdapter.request(["http://", process.env.KUBE_DB_SERVICE_HOST, ":", process.env.KUBE_DB_SERVICE_PORT, process.env.DBADAPTER_DELETE_PATH].join(""), deleteRq);
     logger.log({id: reqId, method: req.method + " " + req.originalUrl, message: "Receive response from DBAdapter app", payload: dbResponse});
     var response = {
       "reqId": reqId,
@@ -177,5 +182,6 @@ app.delete("/orgs/:orgId/comments", async (req, res) => {
 });
 
 var server = app.listen(process.env.APP_PORT, function () {
-    console.log("Comment app running on port", server.address().port);
+  console.log(new Date().toISOString() + " " + process.env.APP_NAME + " running on server", server.address());
+  console.log(new Date().toISOString() + " " + process.env.APP_NAME + " running on port", server.address().port);
 });
